@@ -101,8 +101,8 @@ max_packages_per_pod = st.sidebar.slider(
     "Max Packages per POD",
     min_value=20,
     max_value=100,
-    value=40,
-    help="Maximum packages in a single POD"
+    value=50,
+    help="Maximum packages in a single POD. Higher = fewer clusters = faster processing"
 )
 
 min_packages_per_pod = st.sidebar.slider(
@@ -118,11 +118,25 @@ st.sidebar.subheader("Route Optimization")
 
 time_limit = st.sidebar.slider(
     "Optimization Time Limit (seconds)",
-    min_value=10,
-    max_value=120,
-    value=30,
-    help="Maximum time for route optimization per cluster"
+    min_value=5,
+    max_value=60,
+    value=15,
+    help="Maximum time for route optimization per cluster. Lower = faster but less optimal. Recommended: 10-20s"
 )
+
+# Performance tips
+with st.sidebar.expander("⚡ Speed Up Tips"):
+    st.markdown("""
+    **For faster results:**
+    - Set Time Limit to **10-15s**
+    - Increase Max Packages to **60-80**
+    - Use **hierarchical** clustering
+
+    **For best quality:**
+    - Set Time Limit to **30-60s**
+    - Keep Max Packages at **30-40**
+    - Expect longer wait times
+    """)
 
 # Run button
 run_optimization = st.sidebar.button("🚀 Run Optimization", type="primary", width='stretch')
@@ -248,6 +262,23 @@ else:
                 col2.metric("Couriers", f"{df['EMPLOYEE_ID'].nunique()}")
                 col3.metric("Current PODs", f"{df['DO_POD_DELIVER_CODE'].nunique()}")
                 col4.metric("Total Weight", f"{df['BERATASLI'].sum():.1f} kg")
+
+                # Performance warning for large datasets
+                if len(df) > 1500:
+                    st.warning(f"""
+                    ⚠️ **Large Dataset Detected ({len(df):,} deliveries)**
+
+                    This may take 5-15 minutes to optimize. To speed up:
+                    - Reduce **Time Limit** to 10-15 seconds (sidebar)
+                    - Increase **Max Packages per POD** to 60-80 (sidebar)
+                    - Or process in smaller batches
+                    """)
+                elif len(df) > 1000:
+                    st.info(f"""
+                    ℹ️ **Medium Dataset ({len(df):,} deliveries)** - Estimated time: 3-8 minutes
+
+                    💡 Tip: Reduce **Time Limit** in sidebar for faster results.
+                    """)
 
                 # Step 2: Clustering
                 status_text.text("🗺️ Step 2/5: Running geographic clustering...")
