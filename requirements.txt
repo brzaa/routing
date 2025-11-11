@@ -18,5 +18,8 @@ plotly>=5.17.0
 matplotlib>=3.7.0
 seaborn>=0.12.0
 
+# Web Application
+streamlit>=1.28.0
+
 # Utilities
 pathlib>=1.0.1

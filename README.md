@@ -13,13 +13,15 @@ This system optimizes delivery routes through:
 
 ## Features
 
+- ✅ **Web Interface** - Upload CSV and see results instantly with Streamlit
 - ✅ **Geographic Clustering** using KMeans, DBSCAN, or Hierarchical algorithms
-- ✅ **Fair Workload Distribution** via Hungarian algorithm
+- ✅ **Fair Workload Distribution** via balanced assignment algorithm
 - ✅ **TSP/VRP Optimization** using Google OR-Tools
 - ✅ **Real-world Distance Calculations** with geodesic distances
 - ✅ **Business Impact Analysis** with fuel, cost, time, and CO2 metrics
 - ✅ **Interactive Maps** with Folium and Plotly
 - ✅ **Comprehensive Reporting** with CSV exports and JSON metrics
+- ✅ **One-Click Deployment** to Streamlit Cloud (FREE)
 
 ## Project Structure
 
@@ -39,8 +41,12 @@ routing/
 │   ├── maps/                   # HTML map visualizations
 │   ├── routes/                 # Route CSV exports
 │   └── metrics/                # Metrics reports and dashboards
-├── main.py                     # Main pipeline script
+├── .streamlit/
+│   └── config.toml             # Streamlit configuration
+├── streamlit_app.py            # Web application (NEW!)
+├── main.py                     # Command-line interface
 ├── requirements.txt            # Python dependencies
+├── DEPLOYMENT.md               # Deployment guide
 └── README.md
 ```
 
@@ -64,7 +70,18 @@ pip install -r requirements.txt
 
 ## Quick Start
 
-### Basic Usage
+### 🌐 Web App (Recommended)
+
+**Try the live demo:** `https://[your-app].streamlit.app` (after deployment)
+
+```bash
+# Run locally
+streamlit run streamlit_app.py
+```
+
+Upload your CSV file and see results instantly with interactive visualizations!
+
+### 💻 Command Line
 
 ```bash
 # Run optimization on your data
@@ -193,6 +210,30 @@ Assumptions for Indonesian logistics:
 - Average speed: 40 km/hour
 - CO2 emissions: 2.3 kg/liter
 - Working days: 22 days/month
+
+## 🚀 Web App Deployment
+
+### Deploy to Streamlit Cloud (FREE)
+
+1. **Fork/Clone this repository** to your GitHub account
+2. **Sign up** at https://streamlit.io/cloud (free)
+3. **Click "New app"** and select:
+   - Repository: `your-username/routing`
+   - Branch: `main`
+   - Main file: `streamlit_app.py`
+4. **Click "Deploy"** and wait 2-5 minutes
+5. **Share your URL**: `https://your-app.streamlit.app`
+
+📖 **Full deployment guide**: See [DEPLOYMENT.md](DEPLOYMENT.md)
+
+### Web App Features
+
+- 📤 **Drag & Drop Upload** - Simply upload your CSV file
+- ⚙️ **Interactive Controls** - Adjust parameters in real-time
+- 🗺️ **Live Visualizations** - See clustering and routes instantly
+- 📊 **Business Dashboard** - View KPIs and metrics
+- 📥 **Export Results** - Download optimized routes and metrics
+- 🚀 **No Setup Required** - Works in any browser
 
 ## Development
 
