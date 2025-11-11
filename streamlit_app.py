@@ -125,7 +125,7 @@ time_limit = st.sidebar.slider(
 )
 
 # Run button
-run_optimization = st.sidebar.button("🚀 Run Optimization", type="primary", use_container_width=True)
+run_optimization = st.sidebar.button("🚀 Run Optimization", type="primary", width='stretch')
 
 # Main content area
 if uploaded_file is None:
@@ -212,7 +212,7 @@ else:
             uploaded_file.seek(0)  # Reset file pointer
 
             st.write(f"**Rows:** {len(df_preview):,} | **Columns:** {len(df_preview.columns)}")
-            st.dataframe(df_preview.head(10), use_container_width=True)
+            st.dataframe(df_preview.head(10), width='stretch')
         except Exception as e:
             st.error(f"Error reading file: {str(e)}")
 
@@ -404,6 +404,164 @@ else:
                     st.components.v1.html(map_html, height=600, scrolling=True)
                 else:
                     st.warning("Map file not found")
+
+                # Display route optimization maps
+                st.markdown("---")
+                st.markdown("### 🚗 Optimized Routes per Cluster")
+                st.markdown(f"Total clusters optimized: **{len(route_optimizer.routes)}**")
+
+                # Create tabs for each cluster
+                if route_optimizer.routes:
+                    # Group clusters for better display (max 5 tabs at a time)
+                    cluster_ids = list(route_optimizer.routes.keys())
+
+                    # Show first 5 clusters in tabs
+                    if len(cluster_ids) <= 5:
+                        tabs = st.tabs([f"Cluster {cid}" for cid in cluster_ids[:5]])
+
+                        for idx, cluster_id in enumerate(cluster_ids[:5]):
+                            with tabs[idx]:
+                                route_data = route_optimizer.routes[cluster_id]
+
+                                # Show cluster info
+                                col1, col2, col3 = st.columns(3)
+                                col1.metric("Courier ID", route_data['courier_id'])
+                                col2.metric("Deliveries", len(route_data['delivery_sequence']))
+                                col3.metric("Distance", f"{route_data['total_distance_meters']/1000:.1f} km")
+
+                                # Create Plotly map for this cluster
+                                import plotly.graph_objects as go
+
+                                route = route_data['route']
+                                branch_lat = route[0][0]
+                                branch_lon = route[0][1]
+
+                                fig = go.Figure()
+
+                                # Add branch location
+                                fig.add_trace(go.Scattermapbox(
+                                    lat=[branch_lat],
+                                    lon=[branch_lon],
+                                    mode='markers',
+                                    marker=dict(size=15, color='red', symbol='star'),
+                                    name='Branch',
+                                    text=['Branch'],
+                                    hoverinfo='text'
+                                ))
+
+                                # Add delivery points
+                                if len(route) > 2:
+                                    delivery_lats = [loc[0] for loc in route[1:-1]]
+                                    delivery_lons = [loc[1] for loc in route[1:-1]]
+
+                                    fig.add_trace(go.Scattermapbox(
+                                        lat=delivery_lats,
+                                        lon=delivery_lons,
+                                        mode='markers',
+                                        marker=dict(size=8, color='blue'),
+                                        name='Delivery Points',
+                                        text=[f'Stop {i+1}' for i in range(len(delivery_lats))],
+                                        hoverinfo='text'
+                                    ))
+
+                                # Add optimized route line
+                                route_lats = [loc[0] for loc in route]
+                                route_lons = [loc[1] for loc in route]
+
+                                fig.add_trace(go.Scattermapbox(
+                                    lat=route_lats,
+                                    lon=route_lons,
+                                    mode='lines',
+                                    line=dict(width=3, color='green'),
+                                    name='Optimized Route',
+                                    hoverinfo='skip'
+                                ))
+
+                                # Update layout
+                                fig.update_layout(
+                                    mapbox=dict(
+                                        style="open-street-map",
+                                        center=dict(lat=branch_lat, lon=branch_lon),
+                                        zoom=12
+                                    ),
+                                    showlegend=True,
+                                    height=500,
+                                    margin={"r":0,"t":0,"l":0,"b":0}
+                                )
+
+                                st.plotly_chart(fig, width='stretch')
+
+                    # If more than 5 clusters, show them in an expander
+                    if len(cluster_ids) > 5:
+                        st.markdown(f"**Showing first 5 clusters. {len(cluster_ids)-5} more clusters available.**")
+
+                        with st.expander(f"View remaining {len(cluster_ids)-5} clusters"):
+                            for cluster_id in cluster_ids[5:]:
+                                route_data = route_optimizer.routes[cluster_id]
+
+                                st.markdown(f"#### Cluster {cluster_id}")
+                                col1, col2, col3 = st.columns(3)
+                                col1.metric("Courier ID", route_data['courier_id'])
+                                col2.metric("Deliveries", len(route_data['delivery_sequence']))
+                                col3.metric("Distance", f"{route_data['total_distance_meters']/1000:.1f} km")
+
+                                # Create Plotly map
+                                import plotly.graph_objects as go
+
+                                route = route_data['route']
+                                branch_lat = route[0][0]
+                                branch_lon = route[0][1]
+
+                                fig = go.Figure()
+
+                                # Add branch
+                                fig.add_trace(go.Scattermapbox(
+                                    lat=[branch_lat],
+                                    lon=[branch_lon],
+                                    mode='markers',
+                                    marker=dict(size=15, color='red', symbol='star'),
+                                    name='Branch'
+                                ))
+
+                                # Add deliveries
+                                if len(route) > 2:
+                                    delivery_lats = [loc[0] for loc in route[1:-1]]
+                                    delivery_lons = [loc[1] for loc in route[1:-1]]
+
+                                    fig.add_trace(go.Scattermapbox(
+                                        lat=delivery_lats,
+                                        lon=delivery_lons,
+                                        mode='markers',
+                                        marker=dict(size=8, color='blue'),
+                                        name='Deliveries'
+                                    ))
+
+                                # Add route line
+                                route_lats = [loc[0] for loc in route]
+                                route_lons = [loc[1] for loc in route]
+
+                                fig.add_trace(go.Scattermapbox(
+                                    lat=route_lats,
+                                    lon=route_lons,
+                                    mode='lines',
+                                    line=dict(width=3, color='green'),
+                                    name='Route'
+                                ))
+
+                                fig.update_layout(
+                                    mapbox=dict(
+                                        style="open-street-map",
+                                        center=dict(lat=branch_lat, lon=branch_lon),
+                                        zoom=12
+                                    ),
+                                    height=400,
+                                    margin={"r":0,"t":0,"l":0,"b":0}
+                                )
+
+                                st.plotly_chart(fig, width='stretch')
+                                st.markdown("---")
+                else:
+                    st.info("No route optimizations available to display.")
 
                 # Export options
                 st.markdown("---")
