@@ -1,0 +1,22 @@
+# Core Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Machine Learning & Clustering
+scikit-learn>=1.3.0
+scipy>=1.11.0
+
+# Optimization
+ortools>=9.7.0
+
+# Geographic Calculations
+geopy>=2.4.0
+
+# Visualization
+folium>=0.14.0
+plotly>=5.17.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Utilities
+pathlib>=1.0.1
