@@ -43,7 +43,9 @@ Thumbs.db
 
 # Data files (too large for git)
 *.csv
-!data/raw/.gitkeep
+
+# But keep directory structure
+!.gitkeep
 
 # Environment
 .env
