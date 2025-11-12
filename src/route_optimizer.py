@@ -10,7 +10,9 @@ from typing import Dict, List, Tuple, Optional
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 from geopy.distance import geodesic
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import warnings
+import requests
 warnings.filterwarnings('ignore')
 
 
@@ -24,18 +26,32 @@ class RouteOptimizer:
     - TSP (Traveling Salesman Problem) for single courier routes
     """
 
-    def __init__(self, clustering_system):
+    def __init__(self, clustering_system,
+                 use_ensemble=False,
+                 road_distance_factor=1.35,
+                 use_osrm=False,
+                 osrm_server='http://router.project-osrm.org'):
         """
         Initialize RouteOptimizer with clustering results.
 
         Args:
             clustering_system: PODClusteringSystem instance with clusters already created
+            use_ensemble: If True, uses multiple solvers in parallel and picks best solution
+            road_distance_factor: Multiplier for geodesic distance to approximate road distance (1.35 = 35% longer)
+            use_osrm: If True, uses OSRM API for real road network distances
+            osrm_server: OSRM server URL (default: public server, consider self-hosting for production)
         """
         self.clustering_system = clustering_system
         self.df = clustering_system.df
         self.branch_location = clustering_system.branch_location
         self.new_pods = clustering_system.new_pods
         self.courier_assignments = clustering_system.courier_assignments
+
+        # Configuration
+        self.use_ensemble = use_ensemble
+        self.road_distance_factor = road_distance_factor
+        self.use_osrm = use_osrm
+        self.osrm_server = osrm_server
 
         # Storage for optimization results
         self.routes = {}  # Optimized routes per cluster
@@ -158,7 +174,11 @@ class RouteOptimizer:
 
         # Solve TSP
         try:
-            solution = self._solve_tsp(distance_matrix, time_limit)
+            if self.use_ensemble:
+                print(f"  🔀 Using ensemble solving (parallel strategies)...")
+                solution = self._solve_tsp_ensemble(distance_matrix, time_limit)
+            else:
+                solution = self._solve_tsp(distance_matrix, time_limit)
 
             if solution:
                 route_indices, total_distance = solution
@@ -181,7 +201,8 @@ class RouteOptimizer:
 
                 self.optimization_status[cluster_id] = 'success'
 
-                print(f"  ✓ TSP solved: {total_distance:.0f}m total distance")
+                ensemble_label = " (best of ensemble)" if self.use_ensemble else ""
+                print(f"  ✓ TSP solved: {total_distance:.0f}m total distance{ensemble_label}")
             else:
                 print(f"  ⚠️  TSP failed - using fallback route")
                 self._create_fallback_route(cluster_id, courier_id, deliveries, all_locations)
@@ -190,13 +211,16 @@ class RouteOptimizer:
             print(f"  ❌ TSP error: {str(e)}")
             self._create_fallback_route(cluster_id, courier_id, deliveries, all_locations)
 
-    def _solve_tsp(self, distance_matrix: List[List[int]], time_limit: int) -> Optional[Tuple[List[int], float]]:
+    def _solve_tsp(self, distance_matrix: List[List[int]], time_limit: int,
+                   first_solution_strategy=None, local_search=None) -> Optional[Tuple[List[int], float]]:
         """
         Solve TSP using OR-Tools.
 
         Args:
             distance_matrix: Distance matrix in meters (integers)
             time_limit: Time limit in seconds
+            first_solution_strategy: OR-Tools first solution strategy (optional)
+            local_search: OR-Tools local search metaheuristic (optional)
 
         Returns:
             Tuple of (route_indices, total_distance) or None if no solution
@@ -221,10 +245,10 @@ class RouteOptimizer:
         # Set search parameters
         search_parameters = pywrapcp.DefaultRoutingSearchParameters()
         search_parameters.first_solution_strategy = (
-            routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+            first_solution_strategy or routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
         )
         search_parameters.local_search_metaheuristic = (
-            routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+            local_search or routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
         )
         search_parameters.time_limit.FromSeconds(time_limit)
 
@@ -246,9 +270,86 @@ class RouteOptimizer:
 
         return None
 
+    def _solve_tsp_ensemble(self, distance_matrix: List[List[int]], time_limit: int) -> Optional[Tuple[List[int], float]]:
+        """
+        Solve TSP using ensemble of multiple strategies in parallel.
+
+        Args:
+            distance_matrix: Distance matrix in meters (integers)
+            time_limit: Time limit in seconds (each solver runs for full time in parallel)
+
+        Returns:
+            Best solution from all strategies (route_indices, total_distance) or None
+        """
+        strategies = [
+            {
+                'name': 'PATH_CHEAPEST_ARC + GUIDED_LOCAL_SEARCH',
+                'first_solution': routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC,
+                'local_search': routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+            },
+            {
+                'name': 'GLOBAL_CHEAPEST_ARC + SIMULATED_ANNEALING',
+                'first_solution': routing_enums_pb2.FirstSolutionStrategy.GLOBAL_CHEAPEST_ARC,
+                'local_search': routing_enums_pb2.LocalSearchMetaheuristic.SIMULATED_ANNEALING
+            },
+            {
+                'name': 'LOCAL_CHEAPEST_INSERTION + TABU_SEARCH',
+                'first_solution': routing_enums_pb2.FirstSolutionStrategy.LOCAL_CHEAPEST_INSERTION,
+                'local_search': routing_enums_pb2.LocalSearchMetaheuristic.TABU_SEARCH
+            }
+        ]
+
+        solutions = []
+
+        # Run all strategies in parallel
+        with ThreadPoolExecutor(max_workers=len(strategies)) as executor:
+            futures = {}
+            for strategy in strategies:
+                future = executor.submit(
+                    self._solve_tsp,
+                    distance_matrix,
+                    time_limit,
+                    strategy['first_solution'],
+                    strategy['local_search']
+                )
+                futures[future] = strategy['name']
+
+            # Collect results as they complete
+            for future in as_completed(futures):
+                strategy_name = futures[future]
+                try:
+                    result = future.result()
+                    if result:
+                        solutions.append((result, strategy_name))
+                except Exception as e:
+                    print(f"    ⚠️ Strategy {strategy_name} failed: {str(e)}")
+
+        # Return best solution
+        if solutions:
+            best_solution, best_strategy = min(solutions, key=lambda x: x[0][1])
+            print(f"    ✓ Best strategy: {best_strategy}")
+            return best_solution
+
+        return None
+
     def _create_distance_matrix(self, locations: List[Tuple[float, float]]) -> List[List[int]]:
         """
         Create distance matrix from list of coordinate tuples.
+
+        Args:
+            locations: List of (latitude, longitude) tuples
+
+        Returns:
+            Distance matrix in meters (integers for OR-Tools)
+        """
+        if self.use_osrm:
+            return self._create_distance_matrix_osrm(locations)
+        else:
+            return self._create_distance_matrix_geodesic(locations)
+
+    def _create_distance_matrix_geodesic(self, locations: List[Tuple[float, float]]) -> List[List[int]]:
+        """
+        Create distance matrix using geodesic distance with road correction factor.
 
         Args:
             locations: List of (latitude, longitude) tuples
@@ -262,9 +363,56 @@ class RouteOptimizer:
         for i in range(num_locations):
             for j in range(num_locations):
                 if i != j:
-                    distance_matrix[i][j] = int(geodesic(locations[i], locations[j]).meters)
+                    straight_line_distance = geodesic(locations[i], locations[j]).meters
+                    # Apply road distance correction factor
+                    road_distance = straight_line_distance * self.road_distance_factor
+                    distance_matrix[i][j] = int(road_distance)
 
         return distance_matrix
+
+    def _create_distance_matrix_osrm(self, locations: List[Tuple[float, float]]) -> List[List[int]]:
+        """
+        Create distance matrix using OSRM (Open Source Routing Machine) for real road network distances.
+
+        Args:
+            locations: List of (latitude, longitude) tuples
+
+        Returns:
+            Distance matrix in meters (integers for OR-Tools)
+        """
+        num_locations = len(locations)
+
+        # OSRM expects lon,lat format (reversed from our lat,lon)
+        coords_str = ';'.join([f"{lon},{lat}" for lat, lon in locations])
+
+        try:
+            url = f"{self.osrm_server}/table/v1/driving/{coords_str}"
+            params = {'annotations': 'distance'}
+
+            response = requests.get(url, params=params, timeout=30)
+            response.raise_for_status()
+
+            data = response.json()
+
+            if data.get('code') == 'Ok':
+                # OSRM returns distance matrix directly
+                osrm_distances = data['distances']
+
+                # Convert to integer matrix
+                distance_matrix = [[int(osrm_distances[i][j]) for j in range(num_locations)]
+                                   for i in range(num_locations)]
+
+                return distance_matrix
+            else:
+                print(f"  ⚠️ OSRM API error: {data.get('message', 'Unknown error')}, falling back to geodesic")
+                return self._create_distance_matrix_geodesic(locations)
+
+        except requests.exceptions.RequestException as e:
+            print(f"  ⚠️ OSRM request failed: {str(e)}, falling back to geodesic")
+            return self._create_distance_matrix_geodesic(locations)
+        except Exception as e:
+            print(f"  ⚠️ OSRM error: {str(e)}, falling back to geodesic")
+            return self._create_distance_matrix_geodesic(locations)
 
     def _create_fallback_route(self, cluster_id: int, courier_id: str,
                                 deliveries: pd.DataFrame, all_locations: List) -> None:
