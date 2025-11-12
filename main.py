@@ -38,7 +38,11 @@ def main(
     max_packages_per_pod: int = 40,
     min_packages_per_pod: int = 10,
     time_limit: int = 30,
-    output_dir: str = 'outputs'
+    output_dir: str = 'outputs',
+    use_ensemble: bool = False,
+    road_distance_factor: float = 1.35,
+    use_osrm: bool = False,
+    osrm_server: str = 'http://router.project-osrm.org'
 ):
     """
     Main pipeline for route optimization.
@@ -52,6 +56,10 @@ def main(
         min_packages_per_pod: Minimum packages per POD
         time_limit: Time limit for TSP/VRP solving (seconds)
         output_dir: Base directory for all outputs
+        use_ensemble: Use ensemble solving with multiple strategies (parallel)
+        road_distance_factor: Multiplier for geodesic distance to approximate road distance
+        use_osrm: Use OSRM API for real road network distances
+        osrm_server: OSRM server URL
     """
 
     print("\n" + "="*80)
@@ -117,7 +125,22 @@ def main(
         print("[3/6] OPTIMIZING DELIVERY ROUTES")
         print("="*80)
 
-        route_optimizer = RouteOptimizer(clustering_system)
+        route_optimizer = RouteOptimizer(
+            clustering_system,
+            use_ensemble=use_ensemble,
+            road_distance_factor=road_distance_factor,
+            use_osrm=use_osrm,
+            osrm_server=osrm_server
+        )
+
+        # Print configuration
+        print(f"\nRoute Optimization Configuration:")
+        print(f"  • Ensemble solving: {'Enabled' if use_ensemble else 'Disabled'}")
+        print(f"  • Road distance factor: {road_distance_factor}x")
+        print(f"  • Distance method: {'OSRM (real roads)' if use_osrm else 'Geodesic (straight-line)'}")
+        if use_osrm:
+            print(f"  • OSRM server: {osrm_server}")
+
         route_optimizer.solve_all_clusters(time_limit_seconds=time_limit)
 
         savings = route_optimizer.get_total_distance_savings()
@@ -326,6 +349,33 @@ Examples:
         help='Output directory for results (default: outputs)'
     )
 
+    # Route optimization enhancements
+    parser.add_argument(
+        '--use-ensemble',
+        action='store_true',
+        help='Use ensemble solving (runs 3 strategies in parallel, picks best)'
+    )
+
+    parser.add_argument(
+        '--road-factor',
+        type=float,
+        default=1.35,
+        help='Road distance correction factor (default: 1.35 = 35%% longer than straight-line)'
+    )
+
+    parser.add_argument(
+        '--use-osrm',
+        action='store_true',
+        help='Use OSRM API for real road network distances instead of geodesic'
+    )
+
+    parser.add_argument(
+        '--osrm-server',
+        type=str,
+        default='http://router.project-osrm.org',
+        help='OSRM server URL (default: public server)'
+    )
+
     return parser.parse_args()
 
 
@@ -340,7 +390,11 @@ if __name__ == "__main__":
         max_packages_per_pod=args.max_packages,
         min_packages_per_pod=args.min_packages,
         time_limit=args.time_limit,
-        output_dir=args.output
+        output_dir=args.output,
+        use_ensemble=args.use_ensemble,
+        road_distance_factor=args.road_factor,
+        use_osrm=args.use_osrm,
+        osrm_server=args.osrm_server
     )
 
     # Exit with appropriate code

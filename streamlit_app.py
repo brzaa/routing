@@ -124,6 +124,38 @@ time_limit = st.sidebar.slider(
     help="Maximum time for route optimization per cluster"
 )
 
+# Advanced routing options
+with st.sidebar.expander("⚡ Advanced Routing Options"):
+    use_ensemble = st.checkbox(
+        "Enable Ensemble Solving",
+        value=False,
+        help="Run 3 different TSP strategies in parallel and pick the best solution (same time, better quality)"
+    )
+
+    road_distance_factor = st.slider(
+        "Road Distance Factor",
+        min_value=1.0,
+        max_value=2.0,
+        value=1.35,
+        step=0.05,
+        help="Multiplier for straight-line distance to approximate real road distance (1.35 = 35% longer)"
+    )
+
+    use_osrm = st.checkbox(
+        "Use OSRM for Real Road Distances",
+        value=False,
+        help="Query OSRM API for actual road network distances (slower but more accurate)"
+    )
+
+    if use_osrm:
+        osrm_server = st.text_input(
+            "OSRM Server URL",
+            value="http://router.project-osrm.org",
+            help="OSRM server endpoint (use self-hosted server for production)"
+        )
+    else:
+        osrm_server = "http://router.project-osrm.org"
+
 # Run button
 run_optimization = st.sidebar.button("🚀 Run Optimization", type="primary", width='stretch')
 
@@ -273,7 +305,13 @@ else:
                 status_text.text("🚗 Step 3/5: Optimizing delivery routes...")
                 progress_bar.progress(60)
 
-                route_optimizer = RouteOptimizer(clustering_system)
+                route_optimizer = RouteOptimizer(
+                    clustering_system,
+                    use_ensemble=use_ensemble,
+                    road_distance_factor=road_distance_factor,
+                    use_osrm=use_osrm,
+                    osrm_server=osrm_server
+                )
                 route_optimizer.solve_all_clusters(time_limit_seconds=time_limit)
 
                 progress_bar.progress(75)
