@@ -6,21 +6,21 @@ Upload delivery data and visualize optimized routes with clustering and TSP/VRP 
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 from pathlib import Path
-import tempfile
-import shutil
-import base64
-from io import BytesIO
 import sys
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.data_loader import DataLoader
-from src.clustering import PODClusteringSystem
-from src.route_optimizer import RouteOptimizer
-from src.metrics import MetricsCalculator
+# Lazy imports - only load heavy libraries when needed
+@st.cache_resource
+def load_optimization_modules():
+    """Lazy load heavy optimization modules"""
+    from src.data_loader import DataLoader
+    from src.clustering import PODClusteringSystem
+    from src.route_optimizer import RouteOptimizer
+    from src.metrics import MetricsCalculator
+    return DataLoader, PODClusteringSystem, RouteOptimizer, MetricsCalculator
 
 # Page configuration
 st.set_page_config(
@@ -257,6 +257,10 @@ else:
             status_text = st.empty()
 
             try:
+                # Load heavy optimization modules (lazy loading)
+                status_text.text("⚙️ Loading optimization libraries...")
+                DataLoader, PODClusteringSystem, RouteOptimizer, MetricsCalculator = load_optimization_modules()
+
                 # Step 1: Load and clean data
                 status_text.text("📂 Step 1/5: Loading and cleaning data...")
                 progress_bar.progress(10)
