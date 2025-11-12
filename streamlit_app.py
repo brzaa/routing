@@ -613,18 +613,26 @@ else:
                                     hoverinfo='text'
                                 ))
 
-                                # Add delivery points
+                                # Add delivery points with stop numbers
                                 if len(route) > 2:
                                     delivery_lats = [loc[0] for loc in route[1:-1]]
                                     delivery_lons = [loc[1] for loc in route[1:-1]]
 
+                                    # Get AWB numbers from delivery sequence
+                                    delivery_labels = []
+                                    for i, awb in enumerate(route_data['delivery_sequence']):
+                                        delivery_labels.append(f"Stop {i+1}<br>AWB: {awb}")
+
                                     fig.add_trace(go.Scattermapbox(
                                         lat=delivery_lats,
                                         lon=delivery_lons,
-                                        mode='markers',
-                                        marker=dict(size=8, color='blue'),
+                                        mode='markers+text',
+                                        marker=dict(size=12, color='blue'),
+                                        text=[str(i+1) for i in range(len(delivery_lats))],
+                                        textposition='middle center',
+                                        textfont=dict(size=10, color='white', family='Arial Black'),
                                         name='Delivery Points',
-                                        text=[f'Stop {i+1}' for i in range(len(delivery_lats))],
+                                        hovertext=delivery_labels,
                                         hoverinfo='text'
                                     ))
 
@@ -667,6 +675,22 @@ else:
 
                                 st.plotly_chart(fig, width='stretch')
 
+                                # Show delivery sequence table
+                                with st.expander("📋 View Delivery Sequence"):
+                                    sequence_data = []
+                                    for i, awb in enumerate(route_data['delivery_sequence']):
+                                        lat = route[i+1][0]  # +1 because route[0] is branch
+                                        lon = route[i+1][1]
+                                        sequence_data.append({
+                                            'Stop': i+1,
+                                            'AWB Number': awb,
+                                            'Latitude': f"{lat:.6f}",
+                                            'Longitude': f"{lon:.6f}"
+                                        })
+
+                                    sequence_df = pd.DataFrame(sequence_data)
+                                    st.dataframe(sequence_df, width='stretch', hide_index=True)
+
                     # If more than 5 clusters, show them in an expander
                     if len(cluster_ids) > 5:
                         st.markdown(f"**Showing first 5 clusters. {len(cluster_ids)-5} more clusters available.**")
@@ -699,17 +723,27 @@ else:
                                     name='Branch'
                                 ))
 
-                                # Add deliveries
+                                # Add deliveries with stop numbers
                                 if len(route) > 2:
                                     delivery_lats = [loc[0] for loc in route[1:-1]]
                                     delivery_lons = [loc[1] for loc in route[1:-1]]
 
+                                    # Get AWB numbers from delivery sequence
+                                    delivery_labels = []
+                                    for i, awb in enumerate(route_data['delivery_sequence']):
+                                        delivery_labels.append(f"Stop {i+1}<br>AWB: {awb}")
+
                                     fig.add_trace(go.Scattermapbox(
                                         lat=delivery_lats,
                                         lon=delivery_lons,
-                                        mode='markers',
-                                        marker=dict(size=8, color='blue'),
-                                        name='Deliveries'
+                                        mode='markers+text',
+                                        marker=dict(size=12, color='blue'),
+                                        text=[str(i+1) for i in range(len(delivery_lats))],
+                                        textposition='middle center',
+                                        textfont=dict(size=10, color='white', family='Arial Black'),
+                                        name='Deliveries',
+                                        hovertext=delivery_labels,
+                                        hoverinfo='text'
                                     ))
 
                                 # Add route line
@@ -747,6 +781,23 @@ else:
                                 )
 
                                 st.plotly_chart(fig, width='stretch')
+
+                                # Show delivery sequence table
+                                with st.expander("📋 View Delivery Sequence"):
+                                    sequence_data = []
+                                    for i, awb in enumerate(route_data['delivery_sequence']):
+                                        lat = route[i+1][0]  # +1 because route[0] is branch
+                                        lon = route[i+1][1]
+                                        sequence_data.append({
+                                            'Stop': i+1,
+                                            'AWB Number': awb,
+                                            'Latitude': f"{lat:.6f}",
+                                            'Longitude': f"{lon:.6f}"
+                                        })
+
+                                    sequence_df = pd.DataFrame(sequence_data)
+                                    st.dataframe(sequence_df, width='stretch', hide_index=True)
+
                                 st.markdown("---")
                 else:
                     st.info("No route optimizations available to display.")
