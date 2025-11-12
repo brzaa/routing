@@ -393,19 +393,26 @@ else:
                     # Clustering-only metrics
                     opt_metrics = clustering_system.optimization_metrics
 
+                    # Calculate pod change (absolute number)
+                    pod_change = opt_metrics['after']['n_pods'] - opt_metrics['before']['n_pods']
+
+                    # Calculate average packages per POD
+                    total_packages = len(df)
+                    avg_packages = total_packages / opt_metrics['after']['n_pods']
+
                     col1, col2, col3, col4 = st.columns(4)
 
                     with col1:
                         st.metric(
                             "PODs Created",
-                            len(clustering_system.new_pods),
-                            f"{opt_metrics['improvements']['pod_change']:+d} from current"
+                            opt_metrics['after']['n_pods'],
+                            f"{pod_change:+d} from current"
                         )
 
                     with col2:
                         st.metric(
                             "Workload Balance",
-                            f"{100 - opt_metrics['after']['cv_packages']:.1f}%",
+                            f"{100 - opt_metrics['after']['cv']:.1f}%",
                             f"+{opt_metrics['improvements']['cv_improvement']:.1f}%"
                         )
 
@@ -419,7 +426,7 @@ else:
                     with col4:
                         st.metric(
                             "Avg POD Size",
-                            f"{opt_metrics['after']['avg_packages_per_pod']:.1f}",
+                            f"{avg_packages:.1f}",
                             "packages"
                         )
 
