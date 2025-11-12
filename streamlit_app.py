@@ -495,23 +495,28 @@ else:
                     with st.expander("📊 Detailed Clustering Metrics", expanded=True):
                         opt_metrics = clustering_system.optimization_metrics
 
+                        # Calculate average packages per POD
+                        total_packages = len(df)
+                        avg_packages_before = total_packages / opt_metrics['before']['n_pods']
+                        avg_packages_after = total_packages / opt_metrics['after']['n_pods']
+
                         col1, col2 = st.columns(2)
 
                         with col1:
                             st.markdown("**Before Optimization:**")
                             st.write(f"- PODs: {opt_metrics['before']['n_pods']}")
-                            st.write(f"- Avg Packages/POD: {opt_metrics['before']['avg_packages_per_pod']:.1f}")
-                            st.write(f"- Coefficient of Variation: {opt_metrics['before']['cv_packages']:.1f}%")
+                            st.write(f"- Avg Packages/POD: {avg_packages_before:.1f}")
+                            st.write(f"- Coefficient of Variation: {opt_metrics['before']['cv']:.1f}%")
                             st.write(f"- Max/Min Ratio: {opt_metrics['before']['max_min_ratio']:.2f}x")
-                            st.write(f"- Avg Spread: {opt_metrics['before']['avg_spread_meters']:.0f}m")
+                            st.write(f"- Avg Spread: {opt_metrics['before']['avg_spread']:.0f}m")
 
                         with col2:
                             st.markdown("**After Optimization:**")
                             st.write(f"- PODs: {opt_metrics['after']['n_pods']}")
-                            st.write(f"- Avg Packages/POD: {opt_metrics['after']['avg_packages_per_pod']:.1f}")
-                            st.write(f"- Coefficient of Variation: {opt_metrics['after']['cv_packages']:.1f}%")
+                            st.write(f"- Avg Packages/POD: {avg_packages_after:.1f}")
+                            st.write(f"- Coefficient of Variation: {opt_metrics['after']['cv']:.1f}%")
                             st.write(f"- Max/Min Ratio: {opt_metrics['after']['max_min_ratio']:.2f}x")
-                            st.write(f"- Avg Spread: {opt_metrics['after']['avg_spread_meters']:.0f}m")
+                            st.write(f"- Avg Spread: {opt_metrics['after']['avg_spread']:.0f}m")
 
                 # Display map
                 st.markdown("---")
