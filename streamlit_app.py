@@ -629,15 +629,27 @@ else:
                                     ))
 
                                 # Add optimized route line
-                                route_lats = [loc[0] for loc in route]
-                                route_lons = [loc[1] for loc in route]
+                                # Use actual road geometry if available (OSRM), otherwise straight lines
+                                if route_data.get('route_geometry') is not None:
+                                    # Use actual road path from OSRM
+                                    road_path = route_data['route_geometry']
+                                    route_lats = [loc[0] for loc in road_path]
+                                    route_lons = [loc[1] for loc in road_path]
+                                    route_name = 'Optimized Route (Road Path)'
+                                    route_color = 'darkgreen'
+                                else:
+                                    # Use straight lines between waypoints
+                                    route_lats = [loc[0] for loc in route]
+                                    route_lons = [loc[1] for loc in route]
+                                    route_name = 'Optimized Route (Straight Line)'
+                                    route_color = 'green'
 
                                 fig.add_trace(go.Scattermapbox(
                                     lat=route_lats,
                                     lon=route_lons,
                                     mode='lines',
-                                    line=dict(width=3, color='green'),
-                                    name='Optimized Route',
+                                    line=dict(width=3, color=route_color),
+                                    name=route_name,
                                     hoverinfo='skip'
                                 ))
 
@@ -701,15 +713,27 @@ else:
                                     ))
 
                                 # Add route line
-                                route_lats = [loc[0] for loc in route]
-                                route_lons = [loc[1] for loc in route]
+                                # Use actual road geometry if available (OSRM), otherwise straight lines
+                                if route_data.get('route_geometry') is not None:
+                                    # Use actual road path from OSRM
+                                    road_path = route_data['route_geometry']
+                                    route_lats = [loc[0] for loc in road_path]
+                                    route_lons = [loc[1] for loc in road_path]
+                                    route_name = 'Route (Road Path)'
+                                    route_color = 'darkgreen'
+                                else:
+                                    # Use straight lines between waypoints
+                                    route_lats = [loc[0] for loc in route]
+                                    route_lons = [loc[1] for loc in route]
+                                    route_name = 'Route (Straight Line)'
+                                    route_color = 'green'
 
                                 fig.add_trace(go.Scattermapbox(
                                     lat=route_lats,
                                     lon=route_lons,
                                     mode='lines',
-                                    line=dict(width=3, color='green'),
-                                    name='Route'
+                                    line=dict(width=3, color=route_color),
+                                    name=route_name
                                 ))
 
                                 fig.update_layout(

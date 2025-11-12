@@ -186,12 +186,18 @@ class RouteOptimizer:
                 # Extract delivery sequence (excluding depot)
                 delivery_sequence = [deliveries.iloc[idx-1]['delivery_id'] for idx in route_indices if idx > 0]
 
+                # Fetch road geometry if using OSRM
+                route_geometry = None
+                if self.use_osrm:
+                    route_geometry = self._fetch_route_geometry([all_locations[idx] for idx in route_indices])
+
                 # Store route
                 self.routes[cluster_id] = {
                     'courier_id': courier_id,
                     'route': [all_locations[idx] for idx in route_indices],
                     'delivery_sequence': delivery_sequence,
-                    'total_distance_meters': total_distance
+                    'total_distance_meters': total_distance,
+                    'route_geometry': route_geometry  # Actual road path coordinates
                 }
 
                 self.metrics[cluster_id] = {
@@ -413,6 +419,48 @@ class RouteOptimizer:
         except Exception as e:
             print(f"  ⚠️ OSRM error: {str(e)}, falling back to geodesic")
             return self._create_distance_matrix_geodesic(locations)
+
+    def _fetch_route_geometry(self, route_locations: List[Tuple[float, float]]) -> Optional[List[Tuple[float, float]]]:
+        """
+        Fetch actual road geometry from OSRM for visualization.
+
+        Args:
+            route_locations: Ordered list of (latitude, longitude) tuples for the route
+
+        Returns:
+            List of (latitude, longitude) tuples representing the actual road path, or None if failed
+        """
+        if len(route_locations) < 2:
+            return None
+
+        try:
+            # OSRM expects lon,lat format
+            coords_str = ';'.join([f"{lon},{lat}" for lat, lon in route_locations])
+
+            url = f"{self.osrm_server}/route/v1/driving/{coords_str}"
+            params = {
+                'overview': 'full',  # Get full geometry
+                'geometries': 'geojson'  # Use GeoJSON format (easier to parse)
+            }
+
+            response = requests.get(url, params=params, timeout=30)
+            response.raise_for_status()
+
+            data = response.json()
+
+            if data.get('code') == 'Ok' and 'routes' in data:
+                # Extract geometry coordinates
+                geometry = data['routes'][0]['geometry']['coordinates']
+                # Convert from [lon, lat] to (lat, lon)
+                road_path = [(lat, lon) for lon, lat in geometry]
+                return road_path
+            else:
+                print(f"  ⚠️ Could not fetch route geometry: {data.get('message', 'Unknown error')}")
+                return None
+
+        except Exception as e:
+            print(f"  ⚠️ Failed to fetch route geometry: {str(e)}")
+            return None
 
     def _create_fallback_route(self, cluster_id: int, courier_id: str,
                                 deliveries: pd.DataFrame, all_locations: List) -> None:
