@@ -135,7 +135,7 @@ class RouteOptimizer:
         self.routes[cluster_id] = {
             'courier_id': courier_id,
             'route': [branch_coords, delivery_coords, branch_coords],
-            'delivery_sequence': [delivery['delivery_id']],
+            'delivery_sequence': [delivery['AWB_NUMBER']],
             'total_distance_meters': distance_meters
         }
 
@@ -183,8 +183,8 @@ class RouteOptimizer:
             if solution:
                 route_indices, total_distance = solution
 
-                # Extract delivery sequence (excluding depot)
-                delivery_sequence = [deliveries.iloc[idx-1]['delivery_id'] for idx in route_indices if idx > 0]
+                # Extract delivery sequence (excluding depot) - use AWB_NUMBER for tracking
+                delivery_sequence = [deliveries.iloc[idx-1]['AWB_NUMBER'] for idx in route_indices if idx > 0]
 
                 # Fetch road geometry if using OSRM
                 route_geometry = None
@@ -481,7 +481,7 @@ class RouteOptimizer:
         self.routes[cluster_id] = {
             'courier_id': courier_id,
             'route': all_locations + [branch_coords],
-            'delivery_sequence': deliveries['delivery_id'].tolist(),
+            'delivery_sequence': deliveries['AWB_NUMBER'].tolist(),
             'total_distance_meters': total_distance
         }
 
@@ -587,15 +587,14 @@ class RouteOptimizer:
             delivery_sequence = route_data['delivery_sequence']
             total_distance = route_data['total_distance_meters']
 
-            for seq_num, delivery_id in enumerate(delivery_sequence, 1):
-                delivery = self.df[self.df['delivery_id'] == delivery_id].iloc[0]
+            for seq_num, awb_number in enumerate(delivery_sequence, 1):
+                delivery = self.df[self.df['AWB_NUMBER'] == awb_number].iloc[0]
 
                 route_details.append({
                     'cluster_id': cluster_id,
                     'courier_id': courier_id,
                     'sequence_number': seq_num,
-                    'delivery_id': delivery_id,
-                    'awb_number': delivery['AWB_NUMBER'],
+                    'awb_number': awb_number,
                     'latitude': delivery['SELECTED_LATITUDE'],
                     'longitude': delivery['SELECTED_LONGITUDE'],
                     'weight_kg': delivery['BERATASLI'],
