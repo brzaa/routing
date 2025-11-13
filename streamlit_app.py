@@ -154,7 +154,7 @@ if optimize_routes:
 
         use_osrm = st.checkbox(
             "Use OSRM for Real Road Distances",
-            value=False,
+            value=True,
             help="Query OSRM API for actual road network distances (slower but more accurate)"
         )
 
@@ -291,15 +291,17 @@ if st.session_state.optimization_results is not None and not run_optimization:
 
                     # Show route type and OSRM status
                     if route_data.get('route_geometry') is not None:
-                        st.success("✓ Using OSRM real road paths")
+                        st.success(f"✓ Using OSRM real road paths ({len(route_data['route_geometry'])} points)")
                     else:
-                        st.info("ℹ️ Using straight-line approximation")
+                        st.warning(f"⚠️ Using straight-line approximation (OSRM enabled: {route_optimizer.use_osrm})")
                         # Show OSRM errors if any
                         if route_optimizer and hasattr(route_optimizer, 'osrm_errors') and route_optimizer.osrm_errors:
                             with st.expander("⚠️ OSRM Issues Detected"):
                                 for error in set(route_optimizer.osrm_errors):  # Use set to show unique errors
                                     st.warning(f"• {error}")
                                 st.info("💡 Check that OSRM server is running and URL is correct in sidebar settings.")
+                        else:
+                            st.info("💡 OSRM was not used for this optimization. Enable it in sidebar → Advanced Routing Options")
 
                     # Create Plotly map
                     import plotly.graph_objects as go
@@ -627,6 +629,9 @@ else:
                 if optimize_routes:
                     status_text.text("🚗 Step 3/5: Optimizing delivery routes...")
                     progress_bar.progress(60)
+
+                    # Debug: Show routing settings
+                    st.info(f"🔧 **Route Settings:** Solver: `{solver_type}` | OSRM: `{use_osrm}` | Server: `{osrm_server}` | Ensemble: `{use_ensemble}`")
 
                     route_optimizer = RouteOptimizer(
                         clustering_system,
