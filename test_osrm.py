@@ -6,6 +6,8 @@ import sys
 
 def test_osrm_connection(osrm_server="http://router.project-osrm.org"):
     """Test basic OSRM connectivity."""
+    # Remove trailing slash to avoid double slashes in URLs
+    osrm_server = osrm_server.rstrip('/')
     print(f"Testing OSRM server: {osrm_server}")
     print("=" * 60)
 

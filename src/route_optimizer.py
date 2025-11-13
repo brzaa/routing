@@ -65,7 +65,7 @@ class RouteOptimizer:
         self.use_ensemble = use_ensemble
         self.road_distance_factor = road_distance_factor
         self.use_osrm = use_osrm
-        self.osrm_server = osrm_server
+        self.osrm_server = osrm_server.rstrip('/')  # Remove trailing slash to avoid double slashes in URLs
         self.solver_type = solver_type
 
         # Initialize LKH solver if requested
