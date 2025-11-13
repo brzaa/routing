@@ -154,7 +154,7 @@ if optimize_routes:
 
         use_osrm = st.checkbox(
             "Use OSRM for Real Road Distances",
-            value=False,
+            value=True,
             help="Query OSRM API for actual road network distances (slower but more accurate)"
         )
 
