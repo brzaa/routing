@@ -58,6 +58,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Initialize session state for results persistence
+if 'optimization_results' not in st.session_state:
+    st.session_state.optimization_results = None
+
 # Title
 st.markdown('<h1 class="main-header">🚚 Route Optimization System</h1>', unsafe_allow_html=True)
 st.markdown("### Optimize last-mile delivery routes with AI-powered clustering and route planning")
@@ -390,6 +394,16 @@ else:
 
                 progress_bar.progress(100)
                 status_text.text("✅ Optimization complete!")
+
+                # Store results in session state for persistence across reruns
+                st.session_state.optimization_results = {
+                    'clustering_system': clustering_system,
+                    'route_optimizer': route_optimizer,
+                    'metrics': metrics,
+                    'map_file': map_file,
+                    'df': df,
+                    'optimize_routes': optimize_routes
+                }
 
                 # Display results
                 st.markdown("---")
@@ -1011,6 +1025,238 @@ else:
             finally:
                 progress_bar.empty()
                 status_text.empty()
+
+    # Display cached results if available (for when page reruns on checkbox click)
+    elif st.session_state.optimization_results is not None:
+        results = st.session_state.optimization_results
+        clustering_system = results['clustering_system']
+        route_optimizer = results['route_optimizer']
+        metrics = results['metrics']
+        map_file = results['map_file']
+        df = results['df']
+        optimize_routes = results['optimize_routes']
+
+        st.markdown("---")
+        st.info("📌 Showing cached results. Upload a new file and click 'Run Optimization' to generate new results.")
+
+        # Re-display all the results (same code as above)
+        if optimize_routes and metrics:
+            st.markdown("## 🎉 Optimization Results")
+
+            # Key metrics
+            st.markdown("### 📊 Key Performance Indicators")
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                st.metric(
+                    "Distance Reduction",
+                    f"{metrics['routing_metrics']['savings_percent']:.1f}%",
+                    f"-{metrics['routing_metrics']['savings_km']:.1f} km"
+                )
+
+            with col2:
+                st.metric(
+                    "Daily Cost Savings",
+                    f"Rp {metrics['business_impact']['cost_savings_idr']:,.0f}",
+                    f"{metrics['business_impact']['fuel_savings_liters']:.1f} L fuel"
+                )
+
+            with col3:
+                st.metric(
+                    "Annual Savings",
+                    f"Rp {metrics['business_impact']['annual_cost_savings_idr']/1_000_000:.1f}M",
+                    f"{metrics['business_impact']['annual_fuel_savings_liters']:,.0f} L/year"
+                )
+
+            with col4:
+                st.metric(
+                    "Workload Balance",
+                    f"+{metrics['clustering_metrics']['cv_improvement']:.1f}%",
+                    "Improvement"
+                )
+
+        # Display route maps if available
+        if optimize_routes and route_optimizer and route_optimizer.routes:
+            st.markdown("---")
+            st.markdown("### 🚗 Optimized Routes per Cluster")
+            st.markdown(f"Total clusters optimized: **{len(route_optimizer.routes)}**")
+
+            cluster_ids = list(route_optimizer.routes.keys())
+
+            if len(cluster_ids) <= 5:
+                tabs = st.tabs([f"Cluster {cid}" for cid in cluster_ids[:5]])
+
+                for idx, cluster_id in enumerate(cluster_ids[:5]):
+                    with tabs[idx]:
+                        route_data = route_optimizer.routes[cluster_id]
+
+                        col1, col2, col3 = st.columns(3)
+                        col1.metric("Courier ID", route_data['courier_id'])
+                        col2.metric("Deliveries", len(route_data['delivery_sequence']))
+                        col3.metric("Distance", f"{route_data['total_distance_meters']/1000:.1f} km")
+
+                        # Create Plotly map
+                        import plotly.graph_objects as go
+
+                        route = route_data['route']
+                        branch_lat = route[0][0]
+                        branch_lon = route[0][1]
+
+                        fig = go.Figure()
+
+                        # Add branch
+                        fig.add_trace(go.Scattermapbox(
+                            lat=[branch_lat],
+                            lon=[branch_lon],
+                            mode='markers',
+                            marker=dict(size=15, color='red', symbol='star'),
+                            name='Branch',
+                            text=['Branch'],
+                            hoverinfo='text'
+                        ))
+
+                        # Add delivery points with numbers
+                        if len(route) > 2:
+                            delivery_lats = [loc[0] for loc in route[1:-1]]
+                            delivery_lons = [loc[1] for loc in route[1:-1]]
+
+                            delivery_labels = []
+                            for i, awb in enumerate(route_data['delivery_sequence']):
+                                delivery_labels.append(f"Stop {i+1}<br>AWB: {awb}")
+
+                            fig.add_trace(go.Scattermapbox(
+                                lat=delivery_lats,
+                                lon=delivery_lons,
+                                mode='markers+text',
+                                marker=dict(size=12, color='blue'),
+                                text=[str(i+1) for i in range(len(delivery_lats))],
+                                textposition='middle center',
+                                textfont=dict(size=10, color='white', family='Arial Black'),
+                                name='Delivery Points',
+                                hovertext=delivery_labels,
+                                hoverinfo='text'
+                            ))
+
+                        # Add route line
+                        if route_data.get('route_geometry') is not None:
+                            road_path = route_data['route_geometry']
+                            route_lats = [loc[0] for loc in road_path]
+                            route_lons = [loc[1] for loc in road_path]
+                            route_name = 'Optimized Route (Road Path)'
+                            route_color = 'darkgreen'
+                        else:
+                            route_lats = [loc[0] for loc in route]
+                            route_lons = [loc[1] for loc in route]
+                            route_name = 'Optimized Route (Straight Line)'
+                            route_color = 'green'
+
+                        fig.add_trace(go.Scattermapbox(
+                            lat=route_lats,
+                            lon=route_lons,
+                            mode='lines',
+                            line=dict(width=3, color=route_color),
+                            name=route_name,
+                            hoverinfo='skip'
+                        ))
+
+                        fig.update_layout(
+                            mapbox=dict(
+                                style="open-street-map",
+                                center=dict(lat=branch_lat, lon=branch_lon),
+                                zoom=12
+                            ),
+                            showlegend=True,
+                            height=500,
+                            margin={"r":0,"t":0,"l":0,"b":0}
+                        )
+
+                        st.plotly_chart(fig, width='stretch')
+
+                        # Add animated route option
+                        if st.checkbox(f"🎬 Show Animated Route", key=f"animate_{cluster_id}"):
+                            import folium
+                            from folium import plugins
+
+                            st.markdown(f"**🎥 Animated Route Playback - Cluster {cluster_id}**")
+                            st.info("The route below shows 'marching ants' animation indicating travel direction along the optimized path.")
+
+                            m = folium.Map(
+                                location=[branch_lat, branch_lon],
+                                zoom_start=13,
+                                tiles='OpenStreetMap'
+                            )
+
+                            folium.Marker(
+                                location=[branch_lat, branch_lon],
+                                popup='<b>Branch/Depot</b><br>Start & End Point',
+                                icon=folium.Icon(color='red', icon='home', prefix='fa'),
+                                tooltip='Branch/Depot'
+                            ).add_to(m)
+
+                            if route_data.get('route_geometry') is not None:
+                                anim_coords = route_data['route_geometry']
+                            else:
+                                anim_coords = route
+
+                            for i in range(len(delivery_lats)):
+                                lat = delivery_lats[i]
+                                lon = delivery_lons[i]
+                                awb = route_data['delivery_sequence'][i]
+
+                                folium.Marker(
+                                    location=[lat, lon],
+                                    popup=f"<b>Stop {i+1}</b><br>AWB: {awb}",
+                                    icon=folium.DivIcon(html=f'''
+                                        <div style="
+                                            background-color: #3388ff;
+                                            color: white;
+                                            border-radius: 50%;
+                                            width: 32px;
+                                            height: 32px;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            font-weight: bold;
+                                            font-size: 14px;
+                                            border: 3px solid white;
+                                            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+                                            font-family: Arial, sans-serif;
+                                        ">{i+1}</div>
+                                    '''),
+                                    tooltip=f"Stop {i+1}: {awb}"
+                                ).add_to(m)
+
+                            plugins.AntPath(
+                                locations=anim_coords,
+                                color='#00aa00',
+                                weight=5,
+                                opacity=0.7,
+                                dash_array=[10, 20],
+                                delay=1000,
+                                pulse_color='#ffffff'
+                            ).add_to(m)
+
+                            map_html = m._repr_html_()
+                            st.components.v1.html(map_html, height=600, scrolling=True)
+
+                            st.caption("💡 The animated dashed line shows the direction of travel. Watch the 'ants march' along the route!")
+
+                        # Delivery sequence table
+                        with st.expander("📋 View Delivery Sequence"):
+                            sequence_data = []
+                            for i, awb in enumerate(route_data['delivery_sequence']):
+                                lat = route[i+1][0]
+                                lon = route[i+1][1]
+                                sequence_data.append({
+                                    'Stop': i+1,
+                                    'AWB Number': awb,
+                                    'Latitude': f"{lat:.6f}",
+                                            'Longitude': f"{lon:.6f}"
+                                })
+
+                            sequence_df = pd.DataFrame(sequence_data)
+                            st.dataframe(sequence_df, width='stretch', hide_index=True)
 
 # Footer
 st.markdown("---")
