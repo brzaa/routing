@@ -167,6 +167,26 @@ if optimize_routes:
         else:
             osrm_server = "http://router.project-osrm.org"
 
+        st.markdown("---")
+        st.markdown("**TSP Solver Selection**")
+
+        solver_type = st.selectbox(
+            "Solver Algorithm",
+            options=['ortools', 'lkh', 'both'],
+            index=0,
+            help="OR-Tools: Fast Google solver | LKH: World-class TSP solver (requires installation) | Both: Run comparison"
+        )
+
+        if solver_type in ['lkh', 'both']:
+            lkh_path = st.text_input(
+                "LKH Executable Path",
+                value="LKH",
+                help="Path to LKH binary (download from: http://webhotel4.ruc.dk/~keld/research/LKH/)"
+            )
+            st.info("💡 LKH must be installed separately. Often achieves 5-15% better routes than OR-Tools.")
+        else:
+            lkh_path = "LKH"
+
     # Performance tips
     with st.sidebar.expander("💡 Speed Up Tips"):
         st.markdown("""
@@ -187,6 +207,8 @@ else:
     road_distance_factor = 1.35
     use_osrm = False
     osrm_server = "http://router.project-osrm.org"
+    solver_type = 'ortools'
+    lkh_path = 'LKH'
 
 # Run button
 run_optimization = st.sidebar.button("🚀 Run Optimization", type="primary", width='stretch')
@@ -362,7 +384,9 @@ else:
                         use_ensemble=use_ensemble,
                         road_distance_factor=road_distance_factor,
                         use_osrm=use_osrm,
-                        osrm_server=osrm_server
+                        osrm_server=osrm_server,
+                        solver_type=solver_type,
+                        lkh_path=lkh_path
                     )
                     route_optimizer.solve_all_clusters(time_limit_seconds=time_limit)
 
