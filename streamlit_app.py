@@ -281,7 +281,9 @@ else:
             st.error(f"Error reading file: {str(e)}")
 
     # Run optimization when button clicked
-    if run_optimization:
+    if run_optimization and uploaded_file is not None:
+        # Clear old cached results when starting new optimization
+        st.session_state.optimization_results = None
 
         # Create temporary directory for outputs
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1026,8 +1028,8 @@ else:
                 progress_bar.empty()
                 status_text.empty()
 
-    # Display cached results if available (for when page reruns on checkbox click)
-    elif st.session_state.optimization_results is not None:
+    # Display cached results if available (when user interacts with page after optimization)
+    if st.session_state.optimization_results is not None and not run_optimization:
         results = st.session_state.optimization_results
         clustering_system = results['clustering_system']
         route_optimizer = results['route_optimizer']
