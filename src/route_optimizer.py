@@ -13,6 +13,16 @@ from geopy.distance import geodesic
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import warnings
 import requests
+from pathlib import Path
+import sys
+
+# Import LKH solver if available
+try:
+    from src.lkh_solver import LKHSolver
+    LKH_AVAILABLE = True
+except ImportError:
+    LKH_AVAILABLE = False
+
 warnings.filterwarnings('ignore')
 
 
@@ -30,7 +40,9 @@ class RouteOptimizer:
                  use_ensemble=False,
                  road_distance_factor=1.35,
                  use_osrm=False,
-                 osrm_server='http://router.project-osrm.org'):
+                 osrm_server='http://router.project-osrm.org',
+                 solver_type='ortools',
+                 lkh_path='LKH'):
         """
         Initialize RouteOptimizer with clustering results.
 
@@ -40,6 +52,8 @@ class RouteOptimizer:
             road_distance_factor: Multiplier for geodesic distance to approximate road distance (1.35 = 35% longer)
             use_osrm: If True, uses OSRM API for real road network distances
             osrm_server: OSRM server URL (default: public server, consider self-hosting for production)
+            solver_type: TSP solver to use ('ortools', 'lkh', or 'both' for comparison)
+            lkh_path: Path to LKH executable (default: 'LKH' if in PATH)
         """
         self.clustering_system = clustering_system
         self.df = clustering_system.df
@@ -52,6 +66,20 @@ class RouteOptimizer:
         self.road_distance_factor = road_distance_factor
         self.use_osrm = use_osrm
         self.osrm_server = osrm_server
+        self.solver_type = solver_type
+
+        # Initialize LKH solver if requested
+        self.lkh_solver = None
+        if solver_type in ['lkh', 'both']:
+            if LKH_AVAILABLE:
+                self.lkh_solver = LKHSolver(lkh_path)
+                print(f"✓ LKH solver initialized")
+            else:
+                print(f"⚠️  LKH solver requested but not available")
+                print(f"   Install from: http://webhotel4.ruc.dk/~keld/research/LKH/")
+                if solver_type == 'lkh':
+                    print(f"   Falling back to OR-Tools")
+                    self.solver_type = 'ortools'
 
         # Storage for optimization results
         self.routes = {}  # Optimized routes per cluster
@@ -174,11 +202,52 @@ class RouteOptimizer:
 
         # Solve TSP
         try:
-            if self.use_ensemble:
-                print(f"  🔀 Using ensemble solving (parallel strategies)...")
-                solution = self._solve_tsp_ensemble(distance_matrix, time_limit)
+            solution = None
+            solver_used = "OR-Tools"
+
+            # Choose solver
+            if self.solver_type == 'lkh' and self.lkh_solver:
+                print(f"  🎯 Using LKH solver...")
+                solution = self.lkh_solver.solve_tsp(distance_matrix, time_limit, runs=3)
+                solver_used = "LKH"
+            elif self.solver_type == 'both' and self.lkh_solver:
+                # Run both solvers and compare
+                print(f"  ⚔️  Running OR-Tools vs LKH comparison...")
+
+                # OR-Tools solution
+                if self.use_ensemble:
+                    ortools_solution = self._solve_tsp_ensemble(distance_matrix, time_limit // 2)
+                else:
+                    ortools_solution = self._solve_tsp(distance_matrix, time_limit // 2)
+
+                # LKH solution
+                lkh_solution = self.lkh_solver.solve_tsp(distance_matrix, time_limit // 2, runs=2)
+
+                # Pick best
+                if ortools_solution and lkh_solution:
+                    if lkh_solution[1] < ortools_solution[1]:
+                        solution = lkh_solution
+                        solver_used = "LKH"
+                        improvement = ((ortools_solution[1] - lkh_solution[1]) / ortools_solution[1]) * 100
+                        print(f"  🏆 LKH wins! {improvement:.1f}% better than OR-Tools")
+                    else:
+                        solution = ortools_solution
+                        solver_used = "OR-Tools"
+                        improvement = ((lkh_solution[1] - ortools_solution[1]) / lkh_solution[1]) * 100
+                        print(f"  🏆 OR-Tools wins! {improvement:.1f}% better than LKH")
+                elif ortools_solution:
+                    solution = ortools_solution
+                    solver_used = "OR-Tools (LKH failed)"
+                elif lkh_solution:
+                    solution = lkh_solution
+                    solver_used = "LKH (OR-Tools failed)"
             else:
-                solution = self._solve_tsp(distance_matrix, time_limit)
+                # Default: OR-Tools
+                if self.use_ensemble:
+                    print(f"  🔀 Using ensemble solving (parallel strategies)...")
+                    solution = self._solve_tsp_ensemble(distance_matrix, time_limit)
+                else:
+                    solution = self._solve_tsp(distance_matrix, time_limit)
 
             if solution:
                 route_indices, total_distance = solution
@@ -197,7 +266,8 @@ class RouteOptimizer:
                     'route': [all_locations[idx] for idx in route_indices],
                     'delivery_sequence': delivery_sequence,
                     'total_distance_meters': total_distance,
-                    'route_geometry': route_geometry  # Actual road path coordinates
+                    'route_geometry': route_geometry,  # Actual road path coordinates
+                    'solver_used': solver_used
                 }
 
                 self.metrics[cluster_id] = {
@@ -207,8 +277,8 @@ class RouteOptimizer:
 
                 self.optimization_status[cluster_id] = 'success'
 
-                ensemble_label = " (best of ensemble)" if self.use_ensemble else ""
-                print(f"  ✓ TSP solved: {total_distance:.0f}m total distance{ensemble_label}")
+                ensemble_label = " (best of ensemble)" if self.use_ensemble and solver_used == "OR-Tools" else ""
+                print(f"  ✓ TSP solved with {solver_used}{ensemble_label}: {total_distance:.0f}m total distance")
             else:
                 print(f"  ⚠️  TSP failed - using fallback route")
                 self._create_fallback_route(cluster_id, courier_id, deliveries, all_locations)
