@@ -85,6 +85,7 @@ class RouteOptimizer:
         self.routes = {}  # Optimized routes per cluster
         self.metrics = {}  # Distance metrics per cluster
         self.optimization_status = {}  # Status of each optimization
+        self.osrm_errors = []  # Track OSRM errors for debugging
 
     def solve_all_clusters(self, time_limit_seconds: int = 30) -> Dict:
         """
@@ -480,14 +481,20 @@ class RouteOptimizer:
 
                 return distance_matrix
             else:
-                print(f"  ⚠️ OSRM API error: {data.get('message', 'Unknown error')}, falling back to geodesic")
+                error_msg = f"OSRM API error: {data.get('message', 'Unknown error')}"
+                print(f"  ⚠️ {error_msg}, falling back to geodesic")
+                self.osrm_errors.append(error_msg)
                 return self._create_distance_matrix_geodesic(locations)
 
         except requests.exceptions.RequestException as e:
-            print(f"  ⚠️ OSRM request failed: {str(e)}, falling back to geodesic")
+            error_msg = f"OSRM request failed: {str(e)}"
+            print(f"  ⚠️ {error_msg}, falling back to geodesic")
+            self.osrm_errors.append(error_msg)
             return self._create_distance_matrix_geodesic(locations)
         except Exception as e:
-            print(f"  ⚠️ OSRM error: {str(e)}, falling back to geodesic")
+            error_msg = f"OSRM error: {str(e)}"
+            print(f"  ⚠️ {error_msg}, falling back to geodesic")
+            self.osrm_errors.append(error_msg)
             return self._create_distance_matrix_geodesic(locations)
 
     def _fetch_route_geometry(self, route_locations: List[Tuple[float, float]]) -> Optional[List[Tuple[float, float]]]:
@@ -525,11 +532,15 @@ class RouteOptimizer:
                 road_path = [(lat, lon) for lon, lat in geometry]
                 return road_path
             else:
-                print(f"  ⚠️ Could not fetch route geometry: {data.get('message', 'Unknown error')}")
+                error_msg = f"Could not fetch route geometry: {data.get('message', 'Unknown error')}"
+                print(f"  ⚠️ {error_msg}")
+                self.osrm_errors.append(error_msg)
                 return None
 
         except Exception as e:
-            print(f"  ⚠️ Failed to fetch route geometry: {str(e)}")
+            error_msg = f"Failed to fetch route geometry: {str(e)}"
+            print(f"  ⚠️ {error_msg}")
+            self.osrm_errors.append(error_msg)
             return None
 
     def _create_fallback_route(self, cluster_id: int, courier_id: str,

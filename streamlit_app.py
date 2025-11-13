@@ -214,8 +214,8 @@ else:
 run_optimization = st.sidebar.button("🚀 Run Optimization", type="primary", width='stretch')
 
 # Main content area
-# Check for cached results FIRST (before checking uploaded file)
-if st.session_state.optimization_results is not None and not run_optimization and uploaded_file is None:
+# Check for cached results FIRST (show cached when not running new optimization)
+if st.session_state.optimization_results is not None and not run_optimization:
     # Display cached results when page reruns (e.g., after clicking animation checkbox)
     results = st.session_state.optimization_results
     clustering_system = results['clustering_system']
@@ -289,11 +289,17 @@ if st.session_state.optimization_results is not None and not run_optimization an
                     solver_used = route_data.get('solver_used', 'OR-Tools')
                     col4.metric("Solver", solver_used)
 
-                    # Show route type
+                    # Show route type and OSRM status
                     if route_data.get('route_geometry') is not None:
                         st.success("✓ Using OSRM real road paths")
                     else:
                         st.info("ℹ️ Using straight-line approximation")
+                        # Show OSRM errors if any
+                        if route_optimizer and hasattr(route_optimizer, 'osrm_errors') and route_optimizer.osrm_errors:
+                            with st.expander("⚠️ OSRM Issues Detected"):
+                                for error in set(route_optimizer.osrm_errors):  # Use set to show unique errors
+                                    st.warning(f"• {error}")
+                                st.info("💡 Check that OSRM server is running and URL is correct in sidebar settings.")
 
                     # Create Plotly map
                     import plotly.graph_objects as go
@@ -880,11 +886,17 @@ else:
                                 solver_used = route_data.get('solver_used', 'OR-Tools')
                                 col4.metric("Solver", solver_used)
 
-                                # Show route type
+                                # Show route type and OSRM status
                                 if route_data.get('route_geometry') is not None:
                                     st.success("✓ Using OSRM real road paths")
                                 else:
                                     st.info("ℹ️ Using straight-line approximation")
+                                    # Show OSRM errors if any
+                                    if route_optimizer and hasattr(route_optimizer, 'osrm_errors') and route_optimizer.osrm_errors:
+                                        with st.expander("⚠️ OSRM Issues Detected"):
+                                            for error in set(route_optimizer.osrm_errors):
+                                                st.warning(f"• {error}")
+                                            st.info("💡 Check that OSRM server is running and URL is correct in sidebar settings.")
 
                                 # Create Plotly map for this cluster
                                 import plotly.graph_objects as go
@@ -1077,11 +1089,17 @@ else:
                                 solver_used = route_data.get('solver_used', 'OR-Tools')
                                 col4.metric("Solver", solver_used)
 
-                                # Show route type
+                                # Show route type and OSRM status
                                 if route_data.get('route_geometry') is not None:
                                     st.success("✓ Using OSRM real road paths")
                                 else:
                                     st.info("ℹ️ Using straight-line approximation")
+                                    # Show OSRM errors if any
+                                    if route_optimizer and hasattr(route_optimizer, 'osrm_errors') and route_optimizer.osrm_errors:
+                                        with st.expander("⚠️ OSRM Issues Detected"):
+                                            for error in set(route_optimizer.osrm_errors):
+                                                st.warning(f"• {error}")
+                                            st.info("💡 Check that OSRM server is running and URL is correct in sidebar settings.")
 
                                 # Create Plotly map
                                 import plotly.graph_objects as go
