@@ -675,6 +675,81 @@ else:
 
                                 st.plotly_chart(fig, width='stretch')
 
+                                # Add animated route option
+                                if st.checkbox(f"🎬 Show Animated Route", key=f"animate_{cluster_id}"):
+                                    import folium
+                                    from folium import plugins
+
+                                    st.markdown(f"**🎥 Animated Route Playback - Cluster {cluster_id}**")
+                                    st.info("The route below shows 'marching ants' animation indicating travel direction along the optimized path.")
+
+                                    # Create Folium map
+                                    m = folium.Map(
+                                        location=[branch_lat, branch_lon],
+                                        zoom_start=13,
+                                        tiles='OpenStreetMap'
+                                    )
+
+                                    # Add branch marker
+                                    folium.Marker(
+                                        location=[branch_lat, branch_lon],
+                                        popup='<b>Branch/Depot</b><br>Start & End Point',
+                                        icon=folium.Icon(color='red', icon='home', prefix='fa'),
+                                        tooltip='Branch/Depot'
+                                    ).add_to(m)
+
+                                    # Get route coordinates
+                                    if route_data.get('route_geometry') is not None:
+                                        anim_coords = route_data['route_geometry']
+                                    else:
+                                        anim_coords = route
+
+                                    # Add numbered delivery markers
+                                    for i in range(len(delivery_lats)):
+                                        lat = delivery_lats[i]
+                                        lon = delivery_lons[i]
+                                        awb = route_data['delivery_sequence'][i]
+
+                                        folium.Marker(
+                                            location=[lat, lon],
+                                            popup=f"<b>Stop {i+1}</b><br>AWB: {awb}",
+                                            icon=folium.DivIcon(html=f'''
+                                                <div style="
+                                                    background-color: #3388ff;
+                                                    color: white;
+                                                    border-radius: 50%;
+                                                    width: 32px;
+                                                    height: 32px;
+                                                    display: flex;
+                                                    align-items: center;
+                                                    justify-content: center;
+                                                    font-weight: bold;
+                                                    font-size: 14px;
+                                                    border: 3px solid white;
+                                                    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+                                                    font-family: Arial, sans-serif;
+                                                ">{i+1}</div>
+                                            '''),
+                                            tooltip=f"Stop {i+1}: {awb}"
+                                        ).add_to(m)
+
+                                    # Add animated "marching ants" polyline
+                                    plugins.AntPath(
+                                        locations=anim_coords,
+                                        color='#00aa00',
+                                        weight=5,
+                                        opacity=0.7,
+                                        dash_array=[10, 20],
+                                        delay=1000,
+                                        pulse_color='#ffffff'
+                                    ).add_to(m)
+
+                                    # Display map
+                                    map_html = m._repr_html_()
+                                    st.components.v1.html(map_html, height=600, scrolling=True)
+
+                                    st.caption("💡 The animated dashed line shows the direction of travel. Watch the 'ants march' along the route!")
+
                                 # Show delivery sequence table
                                 with st.expander("📋 View Delivery Sequence"):
                                     sequence_data = []
@@ -781,6 +856,81 @@ else:
                                 )
 
                                 st.plotly_chart(fig, width='stretch')
+
+                                # Add animated route option
+                                if st.checkbox(f"🎬 Show Animated Route", key=f"animate_extra_{cluster_id}"):
+                                    import folium
+                                    from folium import plugins
+
+                                    st.markdown(f"**🎥 Animated Route Playback - Cluster {cluster_id}**")
+                                    st.info("The route below shows 'marching ants' animation indicating travel direction along the optimized path.")
+
+                                    # Create Folium map
+                                    m = folium.Map(
+                                        location=[branch_lat, branch_lon],
+                                        zoom_start=13,
+                                        tiles='OpenStreetMap'
+                                    )
+
+                                    # Add branch marker
+                                    folium.Marker(
+                                        location=[branch_lat, branch_lon],
+                                        popup='<b>Branch/Depot</b><br>Start & End Point',
+                                        icon=folium.Icon(color='red', icon='home', prefix='fa'),
+                                        tooltip='Branch/Depot'
+                                    ).add_to(m)
+
+                                    # Get route coordinates
+                                    if route_data.get('route_geometry') is not None:
+                                        anim_coords = route_data['route_geometry']
+                                    else:
+                                        anim_coords = route
+
+                                    # Add numbered delivery markers
+                                    for i in range(len(delivery_lats)):
+                                        lat = delivery_lats[i]
+                                        lon = delivery_lons[i]
+                                        awb = route_data['delivery_sequence'][i]
+
+                                        folium.Marker(
+                                            location=[lat, lon],
+                                            popup=f"<b>Stop {i+1}</b><br>AWB: {awb}",
+                                            icon=folium.DivIcon(html=f'''
+                                                <div style="
+                                                    background-color: #3388ff;
+                                                    color: white;
+                                                    border-radius: 50%;
+                                                    width: 32px;
+                                                    height: 32px;
+                                                    display: flex;
+                                                    align-items: center;
+                                                    justify-content: center;
+                                                    font-weight: bold;
+                                                    font-size: 14px;
+                                                    border: 3px solid white;
+                                                    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+                                                    font-family: Arial, sans-serif;
+                                                ">{i+1}</div>
+                                            '''),
+                                            tooltip=f"Stop {i+1}: {awb}"
+                                        ).add_to(m)
+
+                                    # Add animated "marching ants" polyline
+                                    plugins.AntPath(
+                                        locations=anim_coords,
+                                        color='#00aa00',
+                                        weight=5,
+                                        opacity=0.7,
+                                        dash_array=[10, 20],
+                                        delay=1000,
+                                        pulse_color='#ffffff'
+                                    ).add_to(m)
+
+                                    # Display map
+                                    map_html = m._repr_html_()
+                                    st.components.v1.html(map_html, height=600, scrolling=True)
+
+                                    st.caption("💡 The animated dashed line shows the direction of travel. Watch the 'ants march' along the route!")
 
                                 # Show delivery sequence table
                                 with st.expander("📋 View Delivery Sequence"):
