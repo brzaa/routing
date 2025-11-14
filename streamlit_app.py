@@ -225,8 +225,14 @@ if st.session_state.optimization_results is not None and not run_optimization:
     df = results['df']
     optimize_routes = results['optimize_routes']
 
-    st.markdown("---")
-    # Don't show confusing message - these ARE the current results
+    # Auto-scroll to results when showing cached (animation clicked)
+    st.markdown("""
+    <script>
+        setTimeout(function() {
+            window.scrollTo({top: 600, behavior: 'smooth'});
+        }, 200);
+    </script>
+    """, unsafe_allow_html=True)
 
     # Re-display all the results
     if optimize_routes and metrics:
