@@ -226,7 +226,7 @@ if st.session_state.optimization_results is not None and not run_optimization:
     optimize_routes = results['optimize_routes']
 
     st.markdown("---")
-    st.info("📌 Showing cached results. Upload a new file and click 'Run Optimization' to generate new results.")
+    # Don't show confusing message - these ARE the current results
 
     # Re-display all the results
     if optimize_routes and metrics:

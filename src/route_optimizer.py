@@ -211,6 +211,15 @@ class RouteOptimizer:
                 print(f"  🎯 Using LKH solver...")
                 solution = self.lkh_solver.solve_tsp(distance_matrix, time_limit, runs=3)
                 solver_used = "LKH"
+
+                # If LKH fails, fallback to OR-Tools instead of simple fallback
+                if not solution:
+                    print(f"  ⚠️  LKH failed, falling back to OR-Tools...")
+                    if self.use_ensemble:
+                        solution = self._solve_tsp_ensemble(distance_matrix, time_limit)
+                    else:
+                        solution = self._solve_tsp(distance_matrix, time_limit)
+                    solver_used = "OR-Tools (LKH fallback)"
             elif self.solver_type == 'both' and self.lkh_solver:
                 # Run both solvers and compare
                 print(f"  ⚔️  Running OR-Tools vs LKH comparison...")
