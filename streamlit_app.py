@@ -152,6 +152,27 @@ with st.sidebar.expander("🎲 Generate Synthetic Data", expanded=False):
 
 st.sidebar.markdown("---")
 
+# Map style selector
+st.sidebar.subheader("Map Style")
+map_style = st.sidebar.selectbox(
+    "Map Appearance",
+    options=[
+        ('CartoDB Positron (iOS-like)', 'carto-positron', 'cartodbpositron'),
+        ('CartoDB Voyager', 'carto-darkmatter', 'cartodbvoyager'),
+        ('OpenStreetMap (Default)', 'open-street-map', 'OpenStreetMap'),
+        ('Stamen Terrain', 'stamen-terrain', 'Stamen Terrain'),
+    ],
+    index=0,
+    format_func=lambda x: x[0],
+    help="Choose map style. CartoDB Positron has a clean, iOS-like appearance."
+)
+
+# Extract style values
+plotly_style = map_style[1]
+folium_style = map_style[2]
+
+st.sidebar.markdown("---")
+
 # City name input
 city_name = st.sidebar.text_input(
     "City/Area Name",
@@ -442,7 +463,7 @@ if st.session_state.optimization_results is not None and not run_optimization:
 
                     fig.update_layout(
                         mapbox=dict(
-                            style="open-street-map",
+                            style=plotly_style,
                             center=dict(lat=branch_lat, lon=branch_lon),
                             zoom=12
                         ),
@@ -464,7 +485,7 @@ if st.session_state.optimization_results is not None and not run_optimization:
                         m = folium.Map(
                             location=[branch_lat, branch_lon],
                             zoom_start=13,
-                            tiles='OpenStreetMap'
+                            tiles=folium_style
                         )
 
                         folium.Marker(
@@ -1047,7 +1068,7 @@ else:
                                 # Update layout
                                 fig.update_layout(
                                     mapbox=dict(
-                                        style="open-street-map",
+                                        style=plotly_style,
                                         center=dict(lat=branch_lat, lon=branch_lon),
                                         zoom=12
                                     ),
@@ -1070,7 +1091,7 @@ else:
                                     m = folium.Map(
                                         location=[branch_lat, branch_lon],
                                         zoom_start=13,
-                                        tiles='OpenStreetMap'
+                                        tiles=folium_style
                                     )
 
                                     # Add branch marker
@@ -1246,7 +1267,7 @@ else:
 
                                 fig.update_layout(
                                     mapbox=dict(
-                                        style="open-street-map",
+                                        style=plotly_style,
                                         center=dict(lat=branch_lat, lon=branch_lon),
                                         zoom=12
                                     ),
@@ -1268,7 +1289,7 @@ else:
                                     m = folium.Map(
                                         location=[branch_lat, branch_lon],
                                         zoom_start=13,
-                                        tiles='OpenStreetMap'
+                                        tiles=folium_style
                                     )
 
                                     # Add branch marker
