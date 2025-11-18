@@ -127,7 +127,7 @@ def generate_synthetic_data(city='jakarta', num_deliveries=500, num_couriers=10,
         num_deliveries: Number of deliveries to generate
         num_couriers: Number of couriers
         date: Delivery date (defaults to today)
-        output_file: Output CSV filename (auto-generated if None)
+        output_file: Output CSV filename (if None, returns DataFrame without saving)
 
     Returns:
         DataFrame with synthetic delivery data
@@ -140,11 +140,9 @@ def generate_synthetic_data(city='jakarta', num_deliveries=500, num_couriers=10,
     if date is None:
         date = datetime.now().strftime('%Y-%m-%d')
 
-    if output_file is None:
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_file = f"synthetic_{city}_{num_deliveries}del_{timestamp}.csv"
-
-    print(f"Generating {num_deliveries} deliveries for {city_config['name']}...")
+    # Only print when saving to file (command-line usage)
+    if output_file:
+        print(f"Generating {num_deliveries} deliveries for {city_config['name']}...")
 
     # Generate delivery locations (clustered for realism)
     delivery_locations = generate_clustered_deliveries(city_config, num_deliveries)
@@ -190,17 +188,18 @@ def generate_synthetic_data(city='jakarta', num_deliveries=500, num_couriers=10,
 
     df = pd.DataFrame(data)
 
-    # Save to CSV
-    df.to_csv(output_file, index=False)
+    # Save to CSV if output_file specified
+    if output_file:
+        df.to_csv(output_file, index=False)
 
-    print(f"✅ Generated {len(df)} deliveries")
-    print(f"📊 Statistics:")
-    print(f"   - Couriers: {num_couriers}")
-    print(f"   - Current PODs: {df['DO_POD_DELIVER_CODE'].nunique()}")
-    print(f"   - Total Weight: {df['BERATASLI'].sum():.1f} kg")
-    print(f"   - Avg Weight: {df['BERATASLI'].mean():.2f} kg")
-    print(f"   - Date: {date}")
-    print(f"📁 Saved to: {output_file}")
+        print(f"✅ Generated {len(df)} deliveries")
+        print(f"📊 Statistics:")
+        print(f"   - Couriers: {num_couriers}")
+        print(f"   - Current PODs: {df['DO_POD_DELIVER_CODE'].nunique()}")
+        print(f"   - Total Weight: {df['BERATASLI'].sum():.1f} kg")
+        print(f"   - Avg Weight: {df['BERATASLI'].mean():.2f} kg")
+        print(f"   - Date: {date}")
+        print(f"📁 Saved to: {output_file}")
 
     return df
 
