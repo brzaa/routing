@@ -62,9 +62,11 @@ st.markdown("""
 if 'optimization_results' not in st.session_state:
     st.session_state.optimization_results = None
 
-# Title
-st.markdown('<h1 class="main-header">🚚 Route Optimization System</h1>', unsafe_allow_html=True)
-st.markdown("### Optimize last-mile delivery routes with AI-powered clustering and route planning")
+# Only show title/header if no cached results (avoids scroll issue)
+if st.session_state.optimization_results is None:
+    # Title
+    st.markdown('<h1 class="main-header">🚚 Route Optimization System</h1>', unsafe_allow_html=True)
+    st.markdown("### Optimize last-mile delivery routes with AI-powered clustering and route planning")
 
 # Sidebar configuration
 st.sidebar.header("⚙️ Configuration")
@@ -225,16 +227,7 @@ if st.session_state.optimization_results is not None and not run_optimization:
     df = results['df']
     optimize_routes = results['optimize_routes']
 
-    # Auto-scroll to results when showing cached (animation clicked)
-    st.markdown("""
-    <script>
-        setTimeout(function() {
-            window.scrollTo({top: 600, behavior: 'smooth'});
-        }, 200);
-    </script>
-    """, unsafe_allow_html=True)
-
-    # Re-display all the results
+    # Re-display all the results (header is hidden above to avoid scroll issue)
     if optimize_routes and metrics:
         st.markdown("## 🎉 Optimization Results")
 
