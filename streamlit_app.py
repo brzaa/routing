@@ -78,6 +78,80 @@ uploaded_file = st.sidebar.file_uploader(
     help="Upload a CSV file with delivery data. Required columns: AWB_NUMBER, EMPLOYEE_ID, coordinates, etc."
 )
 
+# Synthetic data generator
+st.sidebar.markdown("---")
+with st.sidebar.expander("🎲 Generate Synthetic Data", expanded=False):
+    st.markdown("**Create test data for experimentation**")
+
+    gen_city = st.selectbox(
+        "City",
+        options=['jakarta', 'semarang', 'surabaya', 'bandung', 'yogyakarta', 'grobogan'],
+        index=5,  # Default to Grobogan
+        help="City to generate data for"
+    )
+
+    gen_deliveries = st.slider(
+        "Number of Deliveries",
+        min_value=50,
+        max_value=2000,
+        value=500,
+        step=50,
+        help="More deliveries = longer optimization time"
+    )
+
+    gen_couriers = st.slider(
+        "Number of Couriers",
+        min_value=3,
+        max_value=30,
+        value=10,
+        help="Typical: 1 courier per 30-50 deliveries"
+    )
+
+    if st.button("🎲 Generate Data", type="primary"):
+        from generate_synthetic_data import generate_synthetic_data
+        import io
+
+        with st.spinner(f"Generating {gen_deliveries} deliveries for {gen_city}..."):
+            try:
+                # Generate data in memory
+                df_synthetic = generate_synthetic_data(
+                    city=gen_city,
+                    num_deliveries=gen_deliveries,
+                    num_couriers=gen_couriers,
+                    output_file=None
+                )
+
+                # Convert to CSV for download
+                csv_buffer = io.StringIO()
+                df_synthetic.to_csv(csv_buffer, index=False)
+                csv_data = csv_buffer.getvalue()
+
+                # Create filename
+                from datetime import datetime
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"synthetic_{gen_city}_{gen_deliveries}del_{timestamp}.csv"
+
+                st.success(f"✅ Generated {len(df_synthetic)} deliveries!")
+                st.download_button(
+                    label="📥 Download CSV",
+                    data=csv_data,
+                    file_name=filename,
+                    mime="text/csv"
+                )
+
+                st.info(f"""
+                **Statistics:**
+                - Deliveries: {len(df_synthetic)}
+                - Couriers: {df_synthetic['EMPLOYEE_ID'].nunique()}
+                - Current PODs: {df_synthetic['DO_POD_DELIVER_CODE'].nunique()}
+                - Total Weight: {df_synthetic['BERATASLI'].sum():.1f} kg
+                """)
+
+            except Exception as e:
+                st.error(f"❌ Error generating data: {str(e)}")
+
+st.sidebar.markdown("---")
+
 # City name input
 city_name = st.sidebar.text_input(
     "City/Area Name",
